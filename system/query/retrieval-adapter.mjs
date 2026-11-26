@@ -42,7 +42,7 @@ export function discoverWithRetrieval(input,root,{legacy,normalize}) {
   const seen=new Set(),ranked=[];let returnedBytes=0,reads=0;
   // Exact source requests retain precedence. Broad Domain/Group suggestions
   // supplement lexical hits; they must not fill the bounded list before BM25.
-  const priority=base.candidates.filter(c=>c.discovery_signals?.includes('explicit_path')||c.ref.startsWith('knowledge:principle:'));
+  const priority=base.candidates.filter(c=>c.discovery_signals?.includes('explicit_path')||c.ref.startsWith('knowledge:principle:')||c.source_kind==='domain'&&c.discovery_signals?.some(signal=>signal.startsWith('domain-group:')));
   const push=c=>{if(!seen.has(c.ref)){seen.add(c.ref);ranked.push(c);}};priority.forEach(push);
   const wiki=fs.realpathSync(path.join(root,'wiki'));
   for(const c of found.candidates){

@@ -4,6 +4,8 @@
 
 Query source-grounded material and maintain an owned knowledge library.
 
+Version 2.1.0 unifies new Ingest requests into an automatic workflow with recovery checkpoints and exact-version final confirmation. Query supports Wiki, Domain, approved DomainGroup and Wiki Group navigation, related-page follow and Raw/Clippings provenance. Optional configured BM25/hybrid supplements original Query; direct answer delivery is the default and independent enhanced review is opt-in. Meaningful feedback goes to its real owner under the original consent. AWS, meta, Tools and Research remain optional. See the [current workflow](docs/current-workflow.md), [flow diagram](system/query/query-flow.md) and [upgrade notes](docs/releases/2.1.0.md). No private corpus or author service is included; installation starts no ingestion, indexing or paid calls.
+
 This repository is the independent publication authority for Knowledge. Start with the [domain guide](README.md) and the [module contract](module.json). Follow the listed runtime prerequisites. User projects, facts, accounts and runtime stay in user-owned locations. AWS and meta are optional collaboration and governance integrations.
 
 ```text

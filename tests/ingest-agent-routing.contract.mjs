@@ -63,8 +63,8 @@ test('actual controller start pins the Codex bindings and explicit optional flag
  const env={...Object.fromEntries(Object.entries(process.env).filter(([k])=>k.toLowerCase()!=='psmodulepath')),CODEX_THREAD_ID:parent,GIT_CONFIG_GLOBAL:'NUL'};
  f.git('add','.');f.git('commit','-m','fixture controller setup');
  const run='system/maintenance/ingest-runs/new/run.json';
- const r=spawnSync('powershell',['-NoProfile','-File',path.join(f.root,tools,'ingest-control.ps1'),'-Action','start','-RunPath',run,'-BatchId','new','-Items','Clippings/20261027-new.md','-BeforeCount','2','-ReviewPolicy','deferred'],{encoding:'utf8',env});
- assert.equal(r.status,0,r.stderr+r.stdout);const state=f.read(run).execution_control;
+ const r=spawnSync('powershell',['-NoProfile','-File',path.join(f.root,tools,'ingest-control.ps1'),'-Action','start','-RunPath',run,'-BatchId','new','-Items','Clippings/20261027-new.md','-BeforeCount','2'],{encoding:'utf8',env});
+ assert.equal(r.status,0,r.stderr+r.stdout);const created=f.read(run),state=created.execution_control;assert.equal(created.schema_version,8);assert.equal(created.review_policy,'deferred');assert.equal(state.execution_profile,'consolidated-v1');assert.equal(state.workflow_revision,2);
  assert.deepEqual(state.writer_config,{model:'gpt-6.1-terra',reasoning_effort:'xhigh'});assert.equal(state.post_ingest_reread.enabled,true);assert.equal(state.task_session_bindings.writer.thread_id,writer);assert.equal(state.task_session_bindings.post_ingest_reread.thread_id,worker);assert.equal(fs.readFileSync(path.join(f.root,f.rp),'utf8'),original);
 });
 test('changed approved bytes cannot be silently accepted as the post-reread baseline',t=>{

@@ -1,5 +1,6 @@
 /** Read-only Knowledge discovery and evidence transport. Semantic judgments belong to the caller. */
 import fs from 'node:fs';
+import {resolveSourceClippings, clippingPaths} from './source-clipping.mjs';
 import {queryStopReasons,incompleteGapStopReasons} from './query-completion.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -49,12 +50,21 @@ export function normalizeRequest(input={}) {
   const sources={knowledge:true,wiki:true,raw:true,domain:true,principle:true,clipping:true,...input.sources};
   for(const [k,v] of Object.entries(sources))if(!['knowledge','wiki','raw','domain','principle','clipping'].includes(k)||typeof v!=='boolean')throw new Error(`invalid sources.${k}`);
   const list=(key)=>{const v=input[key]??[];if(!Array.isArray(v)||v.some(x=>typeof x!=='string'||!x.trim()))throw new Error(`invalid ${key}`);return [...new Set(v)];};
-  const normalized={schema_version:1,need:{kind,question:need.question,object:need.object??'',scope:need.scope??'',critical_questions:need.critical_questions??[]},sources,budget,terms:list('terms'),reformulations:list('reformulations'),domains:list('domains'),groups:list('groups'),principle_ids:list('principle_ids'),paths:list('paths'),related_from:list('related_from')};
+  const normalized={schema_version:1,need:{kind,question:need.question,object:need.object??'',scope:need.scope??'',critical_questions:need.critical_questions??[]},sources,budget,terms:list('terms'),reformulations:list('reformulations'),domains:list('domains'),groups:list('groups'),domain_groups:list('domain_groups'),principle_ids:list('principle_ids'),paths:list('paths'),related_from:list('related_from')};
   return {...normalized,context_sha256:hash(JSON.stringify(normalized.need))};
 }
 function allowed(req,kind){return req.sources.knowledge&&req.sources[kind]!==false;}
 function field(text,key){return new RegExp('^'+key+':\\s*([^\\r\\n]+)','m').exec(text)?.[1].trim().replace(/^['"]|['"]$/g,'')??'';}
 function listField(text,key){const v=field(text,key);return v.startsWith('[')?v.slice(1,-1).split(',').map(v=>v.trim().replace(/^['"]|['"]$/g,'')).filter(Boolean):[];}
+function navigationMetadata(text) {
+ return /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1] ?? '';
+}
+function navigationList(meta, key) {
+ const inline = listField(meta, key);
+ if (inline.length) return inline;
+ const block = new RegExp('^'+key+':[ \\t]*\\r?\\n((?:[ \\t]+-[^\\n]*(?:\\n|$))*)', 'm').exec(meta)?.[1] ?? '';
+ return [...block.matchAll(/^[ \t]+-[ \t]+(.+)$/gm)].map(m => m[1].trim().replace(/^['"]|['"]$/g, ''));
+}
 function headings(text){
  const result=[],lines=text.split('\n');let fence=null;
  for(let i=0;i<lines.length;i++){const line=lines[i].replace(/\r$/,'');const f=/^\s{0,3}(`{3,}|~{3,})/.exec(line);if(f){if(!fence)fence=f[1][0];else if(f[1][0]===fence)fence=null;continue;}if(fence)continue;const m=/^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);if(m)result.push({level:m[1].length,title:m[2],line:i+1});}
@@ -68,6 +78,12 @@ function termsFor(req){
  return [...new Set(initial)].slice(0,40);
 }
 function links(text,base){return [...text.matchAll(/\[[^\]]*\]\(\s*(?:<([^>]+)>|([^\s)>]+))(?:\s+"[^"]*")?\s*\)/g)].map(m=>m[1]??m[2]).filter(x=>!/^\w+:/.test(x)).map(x=>{try{return slash(path.posix.normalize(path.posix.join(path.posix.dirname(base),decodeURIComponent(x.split('#')[0]))));}catch{return '';}}).filter(x=>x.startsWith('wiki/')&&x.endsWith('.md'));}
+function relatedWiki(text, relative) {
+ const hs = headings(text), section = hs.find(h => h.title === '相关页面');
+ if (!section) return [];
+ const next = hs.find(h => h.line > section.line && h.level <= section.level);
+ return links(text.split('\n').slice(section.line, next ? next.line - 1 : undefined).join('\n'), relative);
+}
 function listFiles(root,folder,errors){
  const result=[];let full;
  try{full=safe(root,folder);}catch(e){if(e.code!=='ENOENT')errors.push({path:folder,reason:e.code??e.message});return result;}
@@ -83,9 +99,38 @@ export function discoverLegacy(input,root=defaultRoot){
  // Navigation is bounded and selective; it never turns a candidate into a read receipt.
  for(const p of req.paths)signal(p,'explicit_path');
  for(const d of req.domains){if(!allowed(req,'domain'))break;if(!/^[^\\/:]+$/.test(d))throw new Error('invalid domain');try{for(const p of links(load('domains/'+d+'.md'),'domains/'+d+'.md'))signal(p,'domain:'+d);}catch(e){errors.push({path:'domains/'+d+'.md',reason:e.code??e.message});}}
- for(const start of req.related_from){if(!allowed(req,'wiki'))break;try{const item=classify(start);if(item.kind!=='wiki')throw new Error('related_from requires Wiki');const text=load(item.relative);const hs=headings(text);const section=hs.find(h=>h.title==='相关页面');if(section){const next=hs.find(h=>h.line>section.line&&h.level<=section.level);const end=next?next.line-1:undefined;for(const p of links(text.split('\n').slice(section.line,end).join('\n'),item.relative))signal(p,'related:'+item.relative);}}catch(e){errors.push({path:start,reason:e.code??e.message});}}
+ for(const start of req.related_from){if(!allowed(req,'wiki'))break;try{const item=classify(start);if(item.kind!=='wiki')throw new Error('related_from requires Wiki');for(const p of relatedWiki(load(item.relative),item.relative))signal(p,'related:'+item.relative);}catch(e){errors.push({path:start,reason:e.code??e.message});}}
  const groupSignals=[];
  if(req.groups.length&&allowed(req,'wiki'))for(const file of listFiles(root,'groups',errors)){const text=load(file);const id=field(text,'id');const match=req.groups.some(g=>[id,field(text,'name'),...listField(text,'aliases')].includes(g));if(!match)continue;const active=field(text,'status')==='active'&&field(text,'approval_status')==='approved';groupSignals.push({id,path:file,status:active?'active':'unavailable'});if(active)signals.set('@group:'+id,[]);}
+ const domainGroupSignals = [], domainCandidates = [], activeDomainGroups = new Set();
+ if (req.domain_groups.length && allowed(req, 'domain')) {
+  for (const file of listFiles(root, 'domain-groups', errors)) {
+   if (!/^domain-groups\/[^/]+\.md$/.test(file)) continue;
+   const text = load(file), meta = navigationMetadata(text), id = field(meta, 'id');
+   const names = [id, 'knowledge:domain-group:'+id, field(meta, 'name'), ...navigationList(meta, 'aliases')];
+   if (!req.domain_groups.some(g => names.includes(g))) continue;
+   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || id !== path.posix.basename(file, '.md')) {
+    errors.push({path: file, reason: 'domain_group_identity_mismatch'});
+    continue;
+   }
+   const active = field(meta, 'status') === 'active' && field(meta, 'approval_status') === 'approved';
+   domainGroupSignals.push({id, ref: 'knowledge:domain-group:'+id, path: file,
+    source_sha256: hash(reads.get(file)), status: active ? 'active' : 'unavailable', content_read: false});
+   if (active) activeDomainGroups.add(id);
+  }
+  // Domain frontmatter owns membership; Group candidate lists never expand it.
+  if (activeDomainGroups.size) for (const file of listFiles(root, 'domains', errors)) {
+   if (!/^domains\/[^/]+\.md$/.test(file)) continue;
+   const text = load(file), memberships = navigationList(navigationMetadata(text), 'domain_groups');
+   const selected = [...new Set(memberships.filter(id => activeDomainGroups.has(id)))];
+   if (!selected.length) continue;
+   const hs = headings(text);
+   domainCandidates.push({ref: classify(file).ref, path: file, source_kind: 'domain',
+    title: hs[0]?.title ?? path.posix.basename(file, '.md'), headings: hs, matched_terms: [],
+    discovery_signals: selected.map(id => 'domain-group:'+id), source_sha256: hash(reads.get(file)),
+    status: 'candidate_found', content_read: false, claim_support: 'not_verified'});
+  }
+ }
  if(allowed(req,'wiki'))for(const nav of ['system/registry/quick-reference.md','system/registry/index.md']){try{const text=load(nav);for(const line of text.split('\n'))if(terms.some(t=>line.toLowerCase().includes(t)))for(const p of links(line,nav))signal(p,'index');}catch(e){if(e.code!=='ENOENT')errors.push({path:nav,reason:e.code??e.message});}}
  const catalog=[];
  if(allowed(req,'wiki'))for(const relative of listFiles(root,'wiki',errors)){try{const text=load(relative),hs=headings(text);const meta=[relative,field(text,'aliases'),...hs.map(h=>h.title)].join(' ').toLowerCase();for(const g of listField(text,'groups'))if(signals.has('@group:'+g))signal(relative,'group:'+g);const matched=terms.filter(t=>meta.includes(t));catalog.push({relative,text,headings:hs,matched,score:matched.length*3+(signals.has(relative)?2:0),signals:signals.get(relative)??[]});}catch(e){errors.push({path:relative,reason:e.code??e.message});}}
@@ -94,8 +139,9 @@ export function discoverLegacy(input,root=defaultRoot){
  if(bodyNeeded)for(const c of [...catalog].sort((a,b)=>Number(signals.has(b.relative))-Number(signals.has(a.relative))||a.relative.localeCompare(b.relative,'en')).slice(0,req.budget.max_body_files)){bodySearched++;const m=terms.filter(t=>c.text.toLowerCase().includes(t));if(m.length){c.score+=m.length;c.matched=[...new Set([...c.matched,...m])];c.signals.push('bounded_body');}}
  let candidates=catalog.filter(c=>c.score>0).sort((a,b)=>b.score-a.score||a.relative.localeCompare(b.relative,'en')).map(c=>({ref:classify(c.relative).ref,path:c.relative,title:c.headings[0]?.title??path.basename(c.relative),headings:c.headings,matched_terms:c.matched,discovery_signals:c.signals,source_sha256:hash(reads.get(c.relative)),status:'candidate_found',content_read:false,claim_support:'not_verified'}));
  if(req.principle_ids.length&&allowed(req,'principle')&&allowed(req,'domain')){try{const found=queryPrinciples({ids:req.principle_ids,domains:req.domains},root);for(const p of found.principles??[])candidates.push({ref:p.ref,path:p.source_path,title:p.id,source_sha256:p.source_sha256,status:'candidate_found',content_read:false,claim_support:'not_verified'});if(found.status==='unavailable')errors.push({path:'principles',reason:'unavailable',missing:found.missing});}catch(e){errors.push({path:'principles',reason:e.code??e.message});}}
+ candidates=[...domainCandidates,...candidates];
  const total=candidates.length;candidates=candidates.slice(0,req.budget.max_candidates);
- return {schema_version:1,status:candidates.length?'candidates_found':total?'budget_exhausted':'no_relevant_source',need:req.need,request:req,terms,candidates,group_signals:groupSignals,gaps:candidates.length?[]:[total?'Relevant candidates exist but the candidate return budget is exhausted.':'No relevant candidate found within the explored navigation and body scope; corpus-wide absence is not established.'],stop_reason:total>candidates.length?'candidate_budget_exhausted':candidates.length?'awaiting_semantic_selection':'bounded_discovery_exhausted',discovery_scope:{wiki_metadata_files:catalog.length,body_files:bodySearched,body_files_unsearched:bodyNeeded?Math.max(0,catalog.length-bodySearched):catalog.length,candidates_not_returned:total-candidates.length},unavailable:errors,metrics:{file_reads:reads.size,bytes_read:[...reads.values()].reduce((n,b)=>n+b.length,0),source_content_returns:0},writes:false,claim_support:'not_verified'};
+ return {schema_version:1,status:candidates.length?'candidates_found':total?'budget_exhausted':'no_relevant_source',need:req.need,request:req,terms,candidates,group_signals:groupSignals,domain_group_signals:domainGroupSignals,gaps:candidates.length?[]:[total?'Relevant candidates exist but the candidate return budget is exhausted.':'No relevant candidate found within the explored navigation and body scope; corpus-wide absence is not established.'],stop_reason:total>candidates.length?'candidate_budget_exhausted':candidates.length?'awaiting_semantic_selection':'bounded_discovery_exhausted',discovery_scope:{wiki_metadata_files:catalog.length,body_files:bodySearched,body_files_unsearched:bodyNeeded?Math.max(0,catalog.length-bodySearched):catalog.length,candidates_not_returned:total-candidates.length},unavailable:errors,metrics:{file_reads:reads.size,bytes_read:[...reads.values()].reduce((n,b)=>n+b.length,0),source_content_returns:0},writes:false,claim_support:'not_verified'};
 }
 function contentSource(item,root){
  if(item.kind==='principle'){const result=queryPrinciples({ids:[item.ref]},root);const p=result.principles?.[0];if(!p)throw new Error('principle_unavailable');const bytes=fs.readFileSync(safe(root,p.source_path));const text=bytes.toString('utf8');const start=text.indexOf(p.content);if(start<0)throw new Error('principle_location_unavailable');return {relative:p.source_path,bytes,text:p.content,fullText:text,lineOffset:text.slice(0,start).split('\n').length-1,sourceIdentity:p.source_ref,ref:p.ref};}
@@ -112,11 +158,20 @@ function extract(source,selection,req){
  }else if(mode!=='full')throw new Error('invalid_read_mode');
  return {content:lines.slice(start-1,end).join('\n'),range:{mode,heading:heading?.title??null,start_line:start+source.lineOffset,end_line:end+source.lineOffset,complete_unit:true,complete_source:mode==='full'&&source.lineOffset===0,scope_reason:selection.reason??'core_full_read',role:selection.role??'core'},selection:{mode,...(mode==='section'?{heading:selection.heading,reason:selection.reason,role:selection.role}: {})}};
 }
+function sourceNavigationLinks(text, kind, root) {
+ const markdownLinks = [...text.matchAll(/\[[^\]]*\]\(<?([^)>]+)>?\)/g)].map(match => match[1]);
+ const wikiLinks = [...text.matchAll(/\[\[([^\]]+)\]\]/g)].map(match => match[1].split('|')[0]);
+ const linkedSources = [...markdownLinks, ...wikiLinks].filter(link => /raw-sources|Clippings|https?:/.test(link));
+ if (kind !== 'raw') return {source_links: [...new Set(linkedSources)]};
+ const clipping = resolveSourceClippings(text, () => clippingPaths(root));
+ const otherSources = linkedSources.filter(link => /^(?:https?:|(?:\.\.\/)?raw-sources\/)/.test(link));
+ return {source_links: [...new Set([...otherSources, ...clipping.paths])], source_link_gaps: clipping.unavailable};
+}
 function readSourceImpl(input,root=defaultRoot){
  const req=normalizeRequest(input.request??input);let item;
  try{item=classify(input.ref);if(!allowed(req,item.kind)||(item.kind==='principle'&&!allowed(req,'domain')))return failure('disabled','Source kind disabled',{ref:input.ref});const source=contentSource(item,root);const unit=extract(source,input.selection??{},req);
  if(req.budget.max_sources===0||unit.content.length>req.budget.max_content_chars)return failure('budget_exhausted','Complete semantic unit exceeds available budget; no content was truncated',{ref:input.ref,required_chars:unit.content.length});
- const hs=headings(source.fullText),navigationText=item.kind==='principle'?unit.content:source.fullText;return {schema_version:1,status:'source_read',ref:source.ref,source_kind:item.kind,path:source.relative,source_sha256:hash(source.bytes),source_identity:source.sourceIdentity,context_sha256:req.context_sha256,need:req.need,selection:unit.selection,range:unit.range,content:unit.content,content_sha256:hash(unit.content),navigation:{headings:hs,linked_wiki:links(navigationText,source.relative),source_links:[...new Set([...navigationText.matchAll(/\[[^\]]*\]\(<?([^)>]+)>?\)/g)].map(m=>m[1]).concat([...navigationText.matchAll(/\[\[([^\]]+)\]\]/g)].map(m=>m[1].split('|')[0])).filter(l=>/raw-sources|Clippings|https?:/.test(l)))]},read_event:'fresh_content_return',applicability:'requires_task_review',claim_support:'not_verified',metrics:{file_reads:1,bytes_read:source.bytes.length,content_chars_returned:unit.content.length},writes:false};
+ const hs=headings(source.fullText),navigationText=item.kind==='principle'?unit.content:source.fullText;return {schema_version:1,status:'source_read',ref:source.ref,source_kind:item.kind,path:source.relative,source_sha256:hash(source.bytes),source_identity:source.sourceIdentity,context_sha256:req.context_sha256,need:req.need,selection:unit.selection,range:unit.range,content:unit.content,content_sha256:hash(unit.content),navigation:{headings:hs,linked_wiki:links(navigationText,source.relative),...(item.kind==='wiki'?{related_wiki:relatedWiki(source.fullText,source.relative)}:{}),...sourceNavigationLinks(navigationText,item.kind,root)},read_event:'fresh_content_return',applicability:'requires_task_review',claim_support:'not_verified',metrics:{file_reads:1,bytes_read:source.bytes.length,content_chars_returned:unit.content.length},writes:false};
  }catch(e){return failure(e.message==='path_outside_root'||e.message==='source_scope_denied'?'denied':e.code==='ENOENT'?'missing':e.code==='EACCES'||e.code==='EPERM'?'permission_denied':e.message==='media_unreadable'?'media_unreadable':'unavailable',e.message,{ref:input.ref});}
 }
 function verifyEvidenceImpl(input,root=defaultRoot,services={}){

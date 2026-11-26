@@ -23,7 +23,7 @@ param(
     [string]$ApprovedHash = '',
     [switch]$ViaFinalizer,
     [ValidateSet('interactive', 'deferred')]
-    [string]$ReviewPolicy = 'interactive',
+    [string]$ReviewPolicy = 'deferred',
     [ValidateSet('core', 'legacy')]
     [string]$ReviewChannel = 'core',
     [ValidateSet('auto', 'existing', 'consolidated-v1')]

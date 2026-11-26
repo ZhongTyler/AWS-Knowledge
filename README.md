@@ -43,11 +43,15 @@ flowchart LR
 
 按需取得可用、可核查的知识，并将来源全面消化为raw与持久综合Wiki；空库可直接初始化，不依赖父工作区或外部分析工作流。
 
+## 本版工作流
+
+新消化统一自动运行，中途保留恢复点，最终确认精确版本。Query 可从 Wiki、Domain、DomainGroup 或 Wiki Group 进入，按问题横向查相关页，再沿 Raw/Clippings 溯源；默认直接交付正文。有实际增量的查阅才按同意范围交原 owner。见[使用全景](system/query/query-flow.md)与[当前流程和升级](docs/current-workflow.md)。
+
 ## 开始使用
 
 1. 通过 AgentWorkSpace 的统一 init/add 接入即可使用空库查询。需要 Node.js 22+ 与 PowerShell 7（Windows部分脚本可用5.1）；首次 Ingest 前按实际用途补范围。独立使用或定制名称时可运行 setup-wizard 预览，不要求接入后重复问答。
 2. 直接提问或“查询知识库”：核心Wiki读透、补充按缺口。实际入口见[Query工具](system/query/README.md)，空库如实返回缺口。
-3. “消化材料”：默认标准，评分/raw/Wiki归属分段审核；“自动消化”：中途留可验证恢复点，最终集中审核。两者同样保真和追溯。见[消化协议](system/protocols/INGEST_PROTOCOL.md)。
+3. “消化材料”与“自动消化”进入同一自动流程：默认 deferred/core/consolidated-v1，评分、Raw 与 Wiki 经过审核并保留恢复点，最终确认精确版本。历史运行按原策略继续。见[消化协议](system/protocols/INGEST_PROTOCOL.md)。
 4. “健康检查”：执行只读统一[健康入口](system/maintenance/checklists/knowledge-health-check.md)，按完整依赖模块复验；修复需明确范围。
 
 最终报告呈现评分、新增raw、Wiki真实增量与diff、拆分与来源去向、回测范围/结果，以及必要例外和精确批准版本。技术通过不代替用户验收。

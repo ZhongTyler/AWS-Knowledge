@@ -1,5 +1,7 @@
 # Wiki Groups
 
+Group 依据稳定语义或多 Wiki 连接价值及明确共同阅读用例组织知识，不是自由标签。Wiki frontmatter 的 groups 拥有实际成员关系；DomainGroup 另见 [domain-groups](../domain-groups/README.md)。自动消化只记录 Candidate 与 review_when，不自动创建 Group 或修改已批准成员。
+
 本目录保存已获制作人批准的 Wiki Group 定义。它是受控知识关系，不是 Domain 的子层级，也不是自由标签集合。
 
 ## 运行约束

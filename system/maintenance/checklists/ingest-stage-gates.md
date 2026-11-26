@@ -2,7 +2,7 @@
 
 执行前核对运行的 execution_profile：新 core/deferred 可走 consolidated-v1，existing 与历史运行保留原合同。共同内容闸门继续适用，具体执行与审核者路由见[便携执行说明](../../protocols/PORTABLE_EXECUTION.md)，不混用不同 profile 的审核证据。
 
-> **用途**：固定统一 Ingest 流水线的阶段包，以及标准和自动两种审核模式。
+> **用途**：固定统一 Ingest 流水线的阶段包，以及新自动默认和历史审核策略。
 > **适用**：所有 URL / IMA / Clippings / 多 URL / 补审式 Ingest；自动消化仅适用于协议规定的 direct 或 managed-isolated 单批任务。
 > **协议归属**：`system/protocols/INGEST_PROTOCOL.md` 是三阶段行为与状态转换 SSOT；本文只固定各阶段输出闸门。
 
@@ -10,9 +10,11 @@
 
 ## 0. 授权粒度
 
-标准消化在评分、raw、归属规划和写入闭合四个闸门审核；旧称快速映射标准、仅精简展示，同样保存运行单、包、收据与反查索引。普通 start 默认 interactive。显式自动才 deferred，将中间人工介入后置到最终；同一质量线不降低，来源、raw 与 Wiki 前的可恢复边界必须可验证，真实授权/证据阻断即时报告。新 run schema 8 使用 package-data v2 / renderer v2；历史 schema 5/6/7 只按旧格式读取，不重渲染旧审批。可选精确语义复核与现行确定性包共存，不因 precision 回退创建 schema 5。
+当前 consolidated-v1 的共同内容门与主审核者语义以 INGEST_PROTOCOL、INGEST_WRITER_ROUTING 和 PORTABLE_EXECUTION 为准。下文提及 interactive、分段批准或独立上下文的条款用于显式 existing/precision 与历史运行，不覆盖新自动 profile；新运行仍保留相同内容完整性和最终精确确认。
 
-schema 8 每份 Raw 必须通过 `raw-quality.mjs` v2 全文双向独立复核，缺 host-observed 调用记录不得通过；这与可选的整阶段精确审核不同。
+历史 interactive 运行在评分、raw、归属规划和写入闭合四个闸门审核，保存原运行单、包、收据与反查索引。新 start 默认 deferred/core/consolidated-v1，将最终精确版本确认留给用户或明确授权的审核者，中间保留恢复点；历史 interactive 运行保留四闸门，同一质量线不降低，来源、raw 与 Wiki 前的可恢复边界必须可验证，真实授权/证据阻断即时报告。新 run schema 8 使用 package-data v2 / renderer v2；历史 schema 5/6/7 只按旧格式读取，不重渲染旧审批。可选精确语义复核与现行确定性包共存，不因 precision 回退创建 schema 5。
+
+schema 8 每份 Raw 必须通过 `raw-quality.mjs` v2 全文双向非作者复核，consolidated 主审核者与 existing 独立上下文按实际 profile 和 host-observed 调用记录验证；这与可选的整阶段精确审核不同。
 
 启用 precision/enforced 时，评分与阶段一在 check-stage1 前、阶段二在 check-stage2 前、阶段三在 check-stage3 前须有相应 valid_pass；最终审核再复验来源版本。普通同上下文回读不得冒充不同上下文的独立复核。
 - 评分闸门通过：只授权写 raw 消化稿，或写 skipped；不授权 wiki 写入。Clippings 来源在此授权后、任何 raw / skipped 写入前，须统一重命名本批所有已确认终态材料（含 🔴 跳过项）并输出清单。
