@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "knowledge",
   "name": "Knowledge",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "repository": "https://github.com/ZhongTyler/AWS-Knowledge.git",
   "payload": ".",
   "entrypoints": {

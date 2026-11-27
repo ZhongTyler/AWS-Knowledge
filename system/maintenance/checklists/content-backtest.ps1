@@ -254,6 +254,8 @@ function Get-HistoricalBacktestRawPaths {
         }
         if ($record.PSObject.Properties.Name -contains 'samples') {
             foreach ($sample in @($record.samples)) {
+                # Auxiliary records may have samples without a source field.
+                if ($null -eq $sample -or $sample.PSObject.Properties.Name -notcontains 'source') { continue }
                 $path = [string]$sample.source
                 if ($path.StartsWith('raw-sources/', [StringComparison]::OrdinalIgnoreCase)) { [void]$paths.Add($path.Replace('\', '/')) }
             }

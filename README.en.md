@@ -1,5 +1,9 @@
 # Knowledge
 
+<!-- release:2.1.1 -->
+Historical backtest collection skips null and auxiliary samples without source, retaining receipt, scoring and audit paths. No private knowledge or receipts are included.
+[Release and recovery](docs/releases/2.1.1.md)
+
 [简体中文](README.md)
 
 Query source-grounded material and maintain an owned knowledge library.

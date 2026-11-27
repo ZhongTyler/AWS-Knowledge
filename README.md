@@ -1,5 +1,9 @@
 <!-- knowledge-identity:display-name -->
 
+<!-- release:2.1.1 -->
+历史回测读取会跳过空值和没有 source 字段的辅助样本，保留正常回执、评分与审计来源。只改维护脚本，不包含私人知识正文或回执。
+[Release and recovery](docs/releases/2.1.1.md)
+
 
 [English](README.en.md)
 
