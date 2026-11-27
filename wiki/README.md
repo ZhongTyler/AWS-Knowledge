@@ -175,11 +175,11 @@ Group 与 `domains` 不同：Domain 是职能归属，Group 是经人工批准�
 
 ## 链接规范
 
-> 链接分级标准（值得链/不值得链）详见 [`system/protocols/WIKI-LINK-STANDARD.md §一`](../system/protocols/WIKI-LINK-STANDARD.md#一、链接分级)。内联插入规则详见 [`system/protocols/WIKI-LINK-STANDARD.md §二`](../system/protocols/WIKI-LINK-STANDARD.md#二、内联插入规则)。
+> 链接分级标准（值得链/不值得链）详见 [`system/protocols/WIKI-LINK-STANDARD.md §一`](../system/protocols/WIKI-LINK-STANDARD.md#一是否值得链)。内联插入规则详见 [`system/protocols/WIKI-LINK-STANDARD.md §三`](../system/protocols/WIKI-LINK-STANDARD.md#三内联与底部镜像)。
 
 - **raw ↔ wiki**：wiki 页面底部用 `## 来源` 专区集中 `[[]]` 连 raw；不在正文中大量散列 raw 链接
 - **wiki ↔ wiki**：按二级标准选择链接格式——值得链用 `[页面名](./path.md#锚点)` md链接（强制锚点）、不值得链用纯文本或不提。正文首次出现某概念（值得链）时用 md 链接；底部「相关页面」统一再列一次。物理行数 ≤300 的页最多 5 条；301～500 行的跨主题/待拆分页最多 8 条；>500 行若超过 8 条，先拆分再复检。**相关页面描述须写明"如何关联"而非"链接页面是关于什么的"**——例如 `[XX](./XX.md#锚点) — 关联方式：YY 部分从 ZZ 角度补充了本章的 AA 概念`，而非 `[XX](./XX.md) — YY + ZZ 设计`
-- **wiki ↔ wiki 内联插入**（v2.2）：可定位到单个段落的"值得链"优先内联——在关联段末尾插入 `> 📎 参见：[目标页](./path.md#锚点) —— 说明（≤1 行）`，底部做精简镜像 + 指针（`→ 本文 §X 处已插入`）。全局相关或插入点 ≥3 处的保留仅底部。论证链强连贯的页面优先底部，案例/对比型优先内联。详见 [`system/protocols/WIKI-LINK-STANDARD.md §二`](../system/protocols/WIKI-LINK-STANDARD.md#二、内联插入规则)。
+- **wiki ↔ wiki 内联插入**（v2.2）：可定位到单个段落的"值得链"优先内联——在关联段末尾插入 `> 📎 参见：[目标页](./path.md#锚点) —— 说明（≤1 行）`，底部做精简镜像 + 指针（`→ 本文 §X 处已插入`）。全局相关或插入点 ≥3 处的保留仅底部。论证链强连贯的页面优先底部，案例/对比型优先内联。详见 [`system/protocols/WIKI-LINK-STANDARD.md §三`](../system/protocols/WIKI-LINK-STANDARD.md#三内联与底部镜像)。
 - **域文件 ↔ wiki**：域文件只链 wiki 页面，**不直接链 raw-sources**。格式：`[页面名](../wiki/页面名.md)` md链接（2026-07-03起域文件统一用md链接替代 `[[wikilink]]`，与wiki↔wiki一致）
 - **域文件之间**：原则上不互相链接（保持顶层导航独立）
 

@@ -1,8 +1,8 @@
 <!-- knowledge-identity:display-name -->
 
-<!-- release:2.1.1 -->
-历史回测读取会跳过空值和没有 source 字段的辅助样本，保留正常回执、评分与审计来源。只改维护脚本，不包含私人知识正文或回执。
-[Release and recovery](docs/releases/2.1.1.md)
+<!-- release:2.1.2 -->
+修复 Wiki 使用说明中三处链接规则章节跳转，保持链接政策与查询/消化流程；新增真实入站锚点及断锚拒绝回归。
+[Release and recovery](docs/releases/2.1.2.md)
 
 
 [English](README.en.md)

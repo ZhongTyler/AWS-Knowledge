@@ -1,8 +1,8 @@
 # Knowledge
 
-<!-- release:2.1.1 -->
-Historical backtest collection skips null and auxiliary samples without source, retaining receipt, scoring and audit paths. No private knowledge or receipts are included.
-[Release and recovery](docs/releases/2.1.1.md)
+<!-- release:2.1.2 -->
+Fixes three Wiki guide links to the current link-standard headings. Link policy and Query/Ingest behavior remain unchanged; a native navigation regression rejects broken incoming anchors.
+[Release and recovery](docs/releases/2.1.2.md)
 
 [简体中文](README.md)
 
